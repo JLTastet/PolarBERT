@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, ChainDataset
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
 from pytorch_lightning.loggers import WandbLogger
@@ -107,40 +107,47 @@ def get_dataloaders(
         override_batch_size: Optional[int]=None,
     ) -> Tuple[DataLoader, DataLoader]:
 
-    if dataset_type == 'prometheus':
-        from polarbert.prometheus_dataset import IceCubeDataset
-    elif dataset_type == 'kaggle':
-        from polarbert.icecube_dataset import IceCubeDataset
-    else:
-        assert False, f"Unknown dataset type: {dataset_type}"
+    assert dataset_type == 'joint', 'This is an experiment for joint dataset training'
+    assert len(config['data']['train_dir']) == 2, 'Two training directories must be provided for joint dataset training'
+    assert len(config['data']['val_dir']) == 2, 'Two validation directories must be provided for joint dataset training'
+    assert config['data']['train_dir'][0] == config['data']['val_dir'][0], 'The training and validation directories must be the same for Prometheus'
     
-    full_dataset = IceCubeDataset(
-        data_dir=config['data']['train_dir'],
+    train_events = config['data'].get('train_events', None)
+    val_events = config['data'].get('val_events', None)
+
+    from polarbert.prometheus_dataset import IceCubeDataset as PrometheusDataset
+    full_prometheus_dataset = PrometheusDataset(
+        data_dir=config['data']['train_dir'][0],
         batch_size=override_batch_size if override_batch_size is not None else config['training']['per_device_batch_size'],
         transform=transform,
         target_transform=target_transform
     )
-    train_events = config['data'].get('train_events', None)
-    val_events = config['data'].get('val_events', None)
+    if val_events is None:
+        raise ValueError("Number of validation events must be specified for the Prometheus dataset")
+    val_prometheus_dataset = full_prometheus_dataset.slice(0, val_events)
+    train_prometheus_dataset = full_prometheus_dataset.slice(val_events, val_events + train_events) if train_events else full_prometheus_dataset.slice(val_events, None)
 
-    if dataset_type == 'prometheus':
-        if val_events is None:
-            raise ValueError("Number of validation events must be specified for the Prometheus dataset")
-        val_dataset = full_dataset.slice(0, val_events)
-        train_dataset = full_dataset.slice(val_events, val_events + train_events) if train_events else full_dataset.slice(val_events, None)
-    elif dataset_type == 'kaggle':
-        # Training dataset
-        train_dataset = full_dataset.slice(0, train_events)
-        # Validation dataset with optional subsampling
-        full_val_dataset = IceCubeDataset(
-            data_dir=config['data']['val_dir'], 
-            batch_size=override_batch_size if override_batch_size is not None else config['training']['per_device_batch_size'],
-            transform=transform,
-            target_transform=target_transform
-        )
-        val_dataset = full_val_dataset.slice(0, val_events)
-    else:
-        assert False
+    from polarbert.icecube_dataset import IceCubeDataset as KaggleDataset
+    full_kaggle_dataset = KaggleDataset(
+        data_dir=config['data']['train_dir'][1],
+        batch_size=override_batch_size if override_batch_size is not None else config['training']['per_device_batch_size'],
+        transform=transform,
+        target_transform=target_transform
+    )
+    # Training dataset
+    train_kaggle_dataset = full_kaggle_dataset.slice(0, train_events)
+    # Validation dataset with optional subsampling
+    full_val_kaggle_dataset = KaggleDataset(
+        data_dir=config['data']['val_dir'][1], 
+        batch_size=override_batch_size if override_batch_size is not None else config['training']['per_device_batch_size'],
+        transform=transform,
+        target_transform=target_transform
+    )
+    val_kaggle_dataset = full_val_kaggle_dataset.slice(0, val_events)
+
+    # Combine datasets
+    train_dataset = ChainDataset([train_prometheus_dataset, train_kaggle_dataset])
+    val_dataset = ChainDataset([val_prometheus_dataset, val_kaggle_dataset])
     
     loader_kwargs = {
         'batch_size': None,
@@ -211,7 +218,7 @@ def main():
     parser.add_argument('--name', type=str, default=None)
     parser.add_argument("--job_id", type=str, default=None)
     parser.add_argument("--model_type", type=str, choices=list(MODEL_CLASSES.keys()), default='base')
-    parser.add_argument("--dataset_type", type=str, choices=['kaggle', 'prometheus'])
+    parser.add_argument("--dataset_type", type=str, choices=['joint'])
     parser.add_argument("--random_time_offset", type=float, default=None)
     args = parser.parse_args()
 
