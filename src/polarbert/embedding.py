@@ -9,7 +9,7 @@ class IceCubeEmbedding(nn.Module):
         self.mask_prob = config['training']['mask_prob']
         num_doms = 5160
         self.dom_embedding = nn.Embedding(num_doms + 2, dom_embed_dim)
-        self.features_embedding = nn.Linear(3, embedding_dim - dom_embed_dim)
+        self.features_embedding = nn.Linear(2, embedding_dim - dom_embed_dim)
         self.masking = masking
         self.padding_idx = 0
         self.mask_idx = num_doms + 1
@@ -27,13 +27,13 @@ class IceCubeEmbedding(nn.Module):
         
         # Masking
         if self.masking:
-            auxiliary_mask = x[:, :, 2] == -0.5
-            random_mask = torch.rand(auxiliary_mask.shape, device=x.device) < self.mask_prob
-            mask = auxiliary_mask & random_mask & ~padding_mask
+            #auxiliary_mask = x[:, :, 2] == -0.5
+            random_mask = torch.rand(x.shape[:2], device=x.device) < self.mask_prob
+            mask = random_mask & ~padding_mask
             dom_embeds[mask] = self.dom_embedding(torch.tensor(self.mask_idx, device=x.device))
         
         # Other features embedding
-        other_features = x[:, :, :3]
+        other_features = x[:, :, :-1]
         features_embeds = self.features_embedding(other_features)
         
         # Concatenate embeddings

@@ -86,12 +86,13 @@ def setup_callbacks(config: Dict[str, Any], model_name: str) -> list:
     return callbacks
 
 def default_transform(x, l):
+    x = x[:,:,[0,1,3]]
     return x.astype(np.float32), l.astype(np.float32)
 
 def add_random_time_offset(std: float) -> Callable:
     def _add_random_time_offset(x, l):
         time_offset = np.random.normal(0, std, (x.shape[0], 1))
-        x = x.copy().astype(np.float32)
+        x = x[:,:,[0,1,3]].astype(np.float32).copy()
         x[:,:,0] += time_offset
         return x, l.astype(np.float32)
     return _add_random_time_offset
