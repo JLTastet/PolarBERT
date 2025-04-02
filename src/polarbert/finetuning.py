@@ -175,6 +175,45 @@ class EnergyRegressionHead(PredictionHead):
         raise(ValueError("Kaggle dataset does not contain energy targets"))
 
 
+# TODO: validate FlavourClassificationHead once the full dataset is available
+class FlavourClassificationHead(PredictionHead):
+    """Head for flavour classification task."""
+    def __init__(self, config: Dict[str, Any], pretrained_model: Optional[nn.Module] = None):
+        super().__init__(config, pretrained_model)
+
+        # Flavour classification layers
+        self.fc1 = nn.Linear(config['model']['embedding_dim'], config['model']['directional']['hidden_size'])
+        self.relu = nn.ReLU()
+        self.fc2 = nn.Linear(config['model']['directional']['hidden_size'], 3)
+
+    def forward(self, inp, return_logits=False):
+        # Handle the input tuple and get CLS embedding
+        with torch.set_grad_enabled(not self.config.get('pretrained', {}).get('freeze_backbone', False)):
+            cls_embed = self.pretrained_model(inp)
+
+        x = self.fc1(cls_embed)
+        x = self.relu(x)
+        x = self.fc2(x)
+        if return_logits:
+            return x
+        else:
+            return torch.softmax(x, dim=1)
+
+    def shared_step(self, batch, batch_idx):
+        inp, yc = batch
+        y_truth, _ = yc
+        y_pred = self(inp, return_logits=True)
+        loss = nn.CrossEntropyLoss()(y_pred, y_truth)
+        return loss
+
+    @staticmethod
+    def target_transform(y, c):
+        particle_id = y['initial_state_type'].astype(np.int64)
+        mapping = {12: 0, 14: 1, 16: 2}
+        particle_class = np.vectorize(mapping.get)(particle_id)
+        return particle_class, c.astype(np.float32)
+
+
 def load_pretrained_model(config: Dict[str, Any]):
     """Load and prepare pretrained model."""
     # Initialize new model for finetuning
