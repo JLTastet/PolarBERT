@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Dict, Tuple, Any
 import math
 
-from polarbert.prometheus_dataset import IceCubeDataset
+#from polarbert.prometheus_dataset import IceCubeDataset
+from polarbert.icecube_dataset import IceCubeDataset
 from polarbert.flash_model import FlashTransformer
 from polarbert.swiglu_model import SwiGLUTransformer
 from polarbert.base_model import SimpleTransformer
@@ -94,27 +95,20 @@ def get_dataloaders(config: Dict[str, Any], target_transform=default_target_tran
         return x.astype(np.float32), l.astype(np.float32)
     
     # Training dataset
-    full_dataset = IceCubeDataset(
+    train_dataset = IceCubeDataset(
         data_dir=config['data']['train_dir'], 
         batch_size=config['training']['per_device_batch_size'],
         transform=transform,
         target_transform=target_transform
-    )
-    val_dataset = full_dataset.slice(0, config['data']['val_events'])
-    train_dataset = full_dataset.slice(config['data']['val_events'], config['data']['val_events'] + config['data']['train_events'])
-    del full_dataset
+    ).slice(0, config['data']['train_events'])
     
-    # # Validation dataset with optional subsampling
-    # full_val_dataset = IceCubeDataset(
-    #     data_dir=config['data']['val_dir'], 
-    #     batch_size=config['data']['batch_size'],
-    #     transform=transform,
-    #     target_transform=transform
-    # )
-    
-    # val_events = config['data'].get('val_events', None)
-    # val_dataset = full_val_dataset.slice(0, val_events) if val_events else full_val_dataset
-    # del full_val_dataset
+    # Validation dataset with optional subsampling
+    val_dataset = IceCubeDataset(
+        data_dir=config['data']['val_dir'], 
+        batch_size=config['training']['per_device_batch_size'],
+        transform=transform,
+        target_transform=target_transform
+    ).slice(0, config['data'].get('val_events', None))
     
     loader_kwargs = {
         'batch_size': None,
