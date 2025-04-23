@@ -1,0 +1,17 @@
+# Add directories or file patterns to ignore during indexing (e.g. foo/ or *.csv)
+
+# Checkpoints
+*.ckpt
+*.pth
+
+# Logs
+logs/
+*.log
+
+# Archives
+*.tar
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.lzma
+*.zip

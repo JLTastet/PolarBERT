@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# General instructions
+
+- Ask me any questions if it makes your instructions clearer.
+- To keep the diffs small, do not unnecessarily refactor existing code, unless prompted to.
+- Do not break APIs or function signatures unless specifically instructed to. Remember that functions may be called in more than one place, so this could lead to breakage.

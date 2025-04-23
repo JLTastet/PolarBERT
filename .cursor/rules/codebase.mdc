@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Code base
+
+- The script used to pretrain models is [pretraining.py](mdc:src/polarbert/pretraining.py). It relies on a number of other Python files for the model implementation and data loading.
+- The script used to fine-tune models is [finetuning.py](mdc:src/polarbert/finetuning.py).
+- Most paths assume that scripts are run from within the src/polarbert directory.
+- Data loading for the Kaggle dataset is implemented in [icecube_dataset.py](mdc:src/polarbert/icecube_dataset.py).
+- Data loading for the Prometheus dataset is implemented in [prometheus_dataset.py](mdc:src/polarbert/prometheus_dataset.py).
+- We will mostly be using the Flash Attention version of the model, implemented in part in [flash_model.py](mdc:src/polarbert/flash_model.py).
+- The embedding of input features is implemented in [embedding.py](mdc:src/polarbert/embedding.py).
+- Prefer using the `logging` module for info / warnings / errors, rather than print statements.

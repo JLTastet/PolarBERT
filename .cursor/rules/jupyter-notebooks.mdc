@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Jupyter notebooks
+
+- Some relevant Jupyter notebooks are included in the notebooks/ folder.
+- Do not modify the existing notebooks, but feel free to copy them or create new ones alongside (include "Cursor" after the date to identify them).

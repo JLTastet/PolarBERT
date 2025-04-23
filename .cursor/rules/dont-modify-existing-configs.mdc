@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Config files
+
+- YAML config files for individual runs or sweeps are stored in configs/ or subfolders therein.
+- Config files are artefacts that must be preserved to ensure the reproducibility of experiments.
+- Never modify an existing config file unless specifically instructed to do so or unless you generated the config file yourself. Instead, make a copy with a descriptive name and work on the copy.
+- In addition, never delete or modify any file that has "backup" in its name.

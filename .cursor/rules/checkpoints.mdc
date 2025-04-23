@@ -1,0 +1,13 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Model checkpoints
+
+- Saved model checkpoints can be found in the src/polarbert/checkpoints folder, and typically have a `.pth` (plain PyTorch) or `.ckpt` (Pytorch-Lightning) extension.
+- NEVER DELETE ANY CHECKPOINTS. Instead, ask the user to do it manually if needed.
+- Checkpoints in the src/polarbert/checkpoints/results subfolder are experiment results, and are particularly important.
+- When performing a new experiment, always choose a unique and descriptive name for its checkpoints, without any spaces.
+- Checkpoints are large binary files. Do not attempt to read them into your own context.
