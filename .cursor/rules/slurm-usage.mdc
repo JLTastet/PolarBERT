@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Slurm usage
+
+- Jobs are run on a HPC cluster using Slurm.
+- [slurm.sh](mdc:scripts/slurm.sh) can be used as a template. When performing your own experiments, do not directly modify this file unless specifically instructed. Instead, create a new `.sh` file in the scripts/ folder, with a name starting with `slurm-`.
+- Always ask the user to review the Slurm batch script before submitting them.
+- The outputs of Slurm jobs are logged in files in the logs/ folder. Choose a descriptive name for the log file and make sure it is consistent with the config name and the job name.
+- Choose a short but descriptive job name, of at most 10 characters. Keep the same name when running nearly-identical jobs (e.g. during a sweep).
+- Before submitting a large number of jobs during a sweep, always submit one single job and check that it trains by looking at its log file (no need to wait for the training to end, just to start and show some progress bar). If there is an error, report it to the user and try to fix it. If no log file is generated, check if the job is still pending, in which case wait one minute and retry once.
+- Single runs should be ran with nice=0 (normal priority), while runs that are part of a sweep should be ran with nice=999 (low priority).
+- You can safely assume that the batch scripts will be submitted from the src/polarbert directory.

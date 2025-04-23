@@ -1,0 +1,12 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Working directory
+
+- All scripts should be executed from the src/polarbert subdirectory.
+- You can safely assume that script executed by the user will be executed from the src/polarbert subdirectory.
+- Before executing a script yourself, ALWAYS check the current directory, and `cd` to src/polarbert (from the directory root) if needed.
+- The Python package `polarbert` is installed in development mode and can be accessed from anywhere without having to add it to the path.

@@ -1,0 +1,16 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# How to run experiments
+
+- Experiments typically consist in comparing a baseline model to various "interventions" that modify one aspect of the model, data or training.
+- Scaling experiments aim to establish approximate empirical scaling laws, by looking at the evolution of the (validation) loss as a function of model or dataset size.
+- The optimal hyperparameters will often differ between the various conditions, so they must be retuned in each case using a hyperparameter sweep (we use W&B for that).
+- However, the optimal hyperparameters also tend to vary smoothly between conditions, so the optimal hyperparameters after some intervention are typically in the neighbourhood of the optimal hyperparameters of the baseline. This means that the hyperparameters of the baseline can be used as prior for those of the interventions, after adding some "wiggle room" (using, typically, some log-normal or log-uniform distributions).
+- Some hyperparameters, namely `max_epochs`, `max_lr` and `weight_decay`, typically have significantly different optimal values across conditions, while the other hyperparameters are much more stable and can be shared.
+- Optimal hyperparameters differ significantly between pretraining and fine-tuning, and across different fine-tuning tasks (such as direction vs. energy reconstruction).
+- Try to compartmentalise experiments, e.g. create subfolders to hold the configs/logs/checkpoints of the relevant runs.
+- Whenever possible, try to reuse checkpoints, e.g. don’t pretrain the model again if the intervention only affects its fine-tuning.

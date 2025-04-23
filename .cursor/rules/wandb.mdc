@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# W&B (wandb)
+
+- We use W&B for tracking runs and performing hyperparameter sweeps.
+- It is accessed through the `wandb` Python package.
+- You can assumed that the user is logged in.
+- We group runs and sweeps within different projects:
+  - `PolarBERT` for general pretraining runs.
+  - `PolarBERT-sweeps` for pretraining hyperparameter sweeps.
+  - `PolarBERT-results` for pretraining runs that are meant to be preserved (e.g. as part of an experiment).
+  - `PolarBERT-finetuning` for general fine-tuning runs.
+  - `PolarBERT-finetuning-sweeps` for fine-tuning hyperparameter sweeps.
+  - `PolarBERT-finetuning-results` for fine-tuning runs that are meant to be preserved (e.g. as part of an experiment).
+  - `PolarBERT-direction_from_scratch` for general supervised training runs on the pointing/directional reconstruction task.
+  - `PolarBERT-from_scratch-sweeps` for supervised training hyperparameter sweeps.
+- All project names start with "PolarBERT".
+- For debugging and quick tests that are not meant to be preserved, append "-TEST" to the run names to make it easy to identify and delete them afterwards.
+
+## Hyperparameter sweeps
+
+- Always remember to modify both the sweep config and the model config. The latter is passed as a command-line argument within the former.
+- For runs that are part of a sweep, the dirpath should be `checkpoints`. Edit it as needed. In addition, set `save_top_k` to `0` and both `save_last` and `save_final` to `false`, since we do not need to save checkpoints for runs that are part of a sweep.
+- For hyperparameter sweeps, many W&B agents can run in parallel on the HPC cluster.
+- Each Slurm job should only perform a finite number of runs. Because Slurm jobs have an expiration time, it is better from a scheduling perspective to queue many agents each running N jobs than to have agents that run indefinitely.
+- For (long) pretraininng runs, agents should only launch one run before exiting, using the `--count 1` option.
+- For (shorter) fine-tuning runs, each agent can launch 8 runs before exiting, using the `--count 8` option.
+- Once the hyperparameter sweep is over, do not just report the hyperparameters of the best run, which could risk overfitting the validation set. Instead, download the full table containing each run’s hyperparameters and losses and take, for each hyperparameter, the median across the runs in the top $q$ quantile, for configurable $q$.
+- Finally, copy those median hyperparameters to a new config file and retrain a model using them. Append `-tuned` to the model name and track this model in the relevant `...-results` project.

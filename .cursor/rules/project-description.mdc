@@ -1,0 +1,22 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Overall project description
+
+- The aim of the "PolarBERT" project is to create a "foundation" model for neutrino data from the IceCube neutrino detector at the South Pole.
+- In particle physics, one must always rely on some simulated data, because we cannot observe directly the microscopic interactions that take place during a particle collision. Therefore, we use simulations as (imperfect) "forward models" that map simulated interactions to their observable effects in the detector.
+- One of the main tasks in particle physics is therefore to solve the corresponding inverse problem, i.e. start from a collection of observables at the detector level, and reconstruct the properties of the particles before and/or during the interaction, either on an event-per-event basis or in aggregate.
+- Solving this inverse problem can be done either using "classical" statistics (such as maximum likelihood estimation, which is very slow and often fails to find the true maximum due to the complicated optimisation landscape), or using machine learning (which is much faster, has better "practical" performance, and is the go-to method nowadays).
+- Traditionally, machine learning models are trained on simulated data (for which we know the true labels) only. Ideally, we would like to make use of the wealth of real data recorded by the experiments for pretraining. Since pretraining improves sample efficiency by learning useful representation, this would allow us to make better use of the limited amount of simulated data by first pretraining a model on real data (without labels) and then fine-tuning it on simulated data (with labels).
+- We currently do not have access to real data, but we can build a proof of concept by using two different simulated datasets. The (larger and more realistic) Kaggle dataset can be used as a proxy for real data, while the (smaller and less realistic) Prometheus dataset can serve as a proxy for (imperfect) simulated data.
+- The project will be considered a success if we can pretrain a "foundation" model on the full Kaggle dataset, then fine-tune it on the small Prometheus dataset, and finally show that the performance on the downstream task transfers back to the Kaggle dataset. We consider the "pointing" task, i.e. reconstruct the direction of the incoming neutrino. Both datasets contain true labels for the neutrino direction, but we won’t use them for pretraining, only for fine-tuning and evaluation.
+
+## Further info about IceCube
+
+- Our earlier submission about PolarBERT to the NeurIPS workshop "Machine Learning and the Physical Sciences" is available (in PDF format) in [NeurIPS_ML4PS_2024_259.pdf](mdc:documents/NeurIPS_ML4PS_2024_259.pdf).
+- A writeup of the top few solutions to the Kaggle competition is available (in PDF format) in [Bukhari et al. - 2023 - IceCube -- Neutrinos in Deep Ice The Top 3 Solutio.pdf](mdc:documents/Bukhari et al. - 2023 - IceCube -- Neutrinos in Deep Ice The Top 3 Solutio.pdf).
+- The Wikipedia page of the IceCube detector: https://en.wikipedia.org/wiki/IceCube_Neutrino_Observatory
+- Some conference proceedings briefly describing the Prometheus simulation software are (in PDF format) in [2307.16432v1.pdf](mdc:documents/2307.16432v1.pdf).
