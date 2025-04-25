@@ -10,7 +10,7 @@ HYPERPARAMETER_COLS = [
     'max_epochs', 'mask_prob', 'logical_batch_size', 'max_lr', 
     'weight_decay', 'gradient_clip_val', 'one_minus_adam_beta1', 
     'one_minus_adam_beta2', 'adam_eps', 'pct_start', 'div_factor', 
-    'final_div_factor' 
+    'final_div_factor', 'random_time_offset'
 ]
 
 # Parameters that should be integers in the final config
