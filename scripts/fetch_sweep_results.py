@@ -3,12 +3,6 @@ import pandas as pd
 import os
 import argparse
 
-# Define sweep path (adjust entity/project if needed)
-SWEEP_PATH = "polargeese/PolarBERT-sweeps/2l72klhg"
-OUTPUT_DIR = "tables" # Path relative to workspace root
-OUTPUT_FILENAME = "sweep_results_pretrain_kaggle_350k_time_offset.csv"
-METRIC_NAME = "val/full_loss" # The metric to retrieve
-
 def fetch_sweep_data(sweep_path, metric_name):
     """Fetches run data (config and metric) for a given W&B sweep."""
     print(f"Fetching data for sweep: {sweep_path}")
@@ -78,20 +72,27 @@ def save_results_to_csv(df, output_dir, output_filename):
     except Exception as e:
         print(f"Error saving DataFrame to CSV: {e}")
 
-if __name__ == "__main__":
-    
-    # --- Configuration ---
-    sweep_path = SWEEP_PATH
-    output_dir = OUTPUT_DIR
-    output_filename = OUTPUT_FILENAME
-    metric_name = METRIC_NAME
-    # --- End Configuration ---
+def parse_args():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(description='Fetch and save W&B sweep results.')
+    parser.add_argument('sweep_path', type=str,
+                      help='Path to the W&B sweep (e.g., "polargeese/PolarBERT-sweeps/2l72klhg")')
+    parser.add_argument('output_filename', type=str,
+                      help='Name of the output CSV file')
+    parser.add_argument('--output-dir', type=str, default="../../tables",
+                      help='Directory to save the output file (default: "tables")')
+    parser.add_argument('--metric-name', type=str, default="val/full_loss",
+                      help='Name of the metric to retrieve (default: "val/full_loss")')
+    return parser.parse_args()
 
+if __name__ == "__main__":
+    args = parse_args()
+    
     # Fetch data
-    sweep_df = fetch_sweep_data(sweep_path, metric_name)
+    sweep_df = fetch_sweep_data(args.sweep_path, args.metric_name)
 
     # Save data if fetch was successful
     if sweep_df is not None and not sweep_df.empty:
-        save_results_to_csv(sweep_df, output_dir, output_filename)
+        save_results_to_csv(sweep_df, args.output_dir, args.output_filename)
     else:
         print("No data fetched or DataFrame is empty. Skipping save.") 
