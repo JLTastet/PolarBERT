@@ -54,7 +54,7 @@ This section outlines the steps followed to pretrain a model on the Kaggle-350k 
     *   Copy the base *sweep* config to a new file (e.g., `configs/polarbert-kaggle-350k-time_offset-sweep.yaml`).
     *   Update the `name` field for the sweep.
     *   In the `command` section, update the `--config` path to point to the newly created *untuned* config file (relative path from `src/polarbert`, e.g., `../../configs/polarbert-kaggle-350k-time_offset-untuned.yaml`).
-    *   Add command-line arguments specific to the sweep experiment (like `--random_time_offset 1.5`). Those are only present in the base config for experiment-tracking purpose, and will be ignored if not passed on the command line.
+    *   Remove command-line arguments that are now handled by the config (like `--random_time_offset`). Ensure the parameter exists in the referenced untuned config.
     *   Adjust hyperparameter ranges (`parameters`) if needed.
 
 **3. Run Hyperparameter Sweep:**
@@ -96,10 +96,9 @@ This section outlines the steps followed to pretrain a model on the Kaggle-350k 
         srun python pretraining.py \
             --config ../../configs/polarbert-kaggle-350k-time_offset-tuned.yaml \
             --model_type flash \
-            --dataset_type kaggle \
-            --random_time_offset 1.5
+            --dataset_type kaggle 
         ```
-        (Ensure the `--config` path is correct relative to `src/polarbert`).
+        (Ensure the `--config` path is correct relative to `src/polarbert`. Note that `--random_time_offset` is no longer needed as it's read from the config).
 *   **Submit Tuned Job:** From the `src/polarbert` directory, run `sbatch ../../scripts/slurm-pretrain-kaggle-350k-time_offset-tuned.sh`.
 *   **Monitor:** Check job status (`squeue`) and log file (`logs/...`). The final checkpoint will be saved in the `dirpath` specified in the tuned config (e.g., `checkpoints/results/pretrain-kaggle-350k-time_offset-tuned/`).
 
