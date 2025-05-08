@@ -25,7 +25,8 @@ def fetch_sweep_data(sweep_path, metric_name):
             'final_div_factor' 
         ]
         for key in config_keys:
-             run_dict[key] = run.config.get(key)
+            if key in run.config:
+                run_dict[key] = run.config[key]
         
         # Get the summary metric
         summary = run.summary
@@ -42,7 +43,6 @@ def fetch_sweep_data(sweep_path, metric_name):
             runs_data.append(run_dict)
         else:
              print(f"Warning: Metric '{metric_name}' not found for run {run.id} ({run.name}). Skipping run.")
-
 
     if not runs_data:
          print("No runs found with the specified metric for this sweep.")
