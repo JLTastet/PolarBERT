@@ -16,7 +16,7 @@ Pretrained checkpoints (X):
 - Kaggle (130M) $\to$ `checkpoints/results/kaggle-130M-tuned-v2/Flash Transformer/last.ckpt`
 - Kaggle (350k) $\to$ `checkpoints/results/kaggle-350k-tuned/kaggle-tuned-350k_events_250409-160721/last.ckpt`
 - Prometheus (350k) $\to$ `checkpoints/results/prometheus-tuned-v3/prometheus-tuned-v3_250410-035606/last.ckpt`
-### Baselines
+### Supervised baselines
 
 Prometheus-100k:
 - Sweep: https://wandb.ai/polargeese/PolarBERT-from_scratch-sweeps/sweeps/z80hy8k1?nw=nwuserjltastet
@@ -25,6 +25,11 @@ Prometheus-100k:
 Kaggle-100k:
 - Sweep: https://wandb.ai/polargeese/PolarBERT-from_scratch-sweeps/sweeps/yrswi9p9?nw=nwuserjltastet
 - Performance is nearly random (loss ~1.53) when training on 100k events only. The model probably picks up the up/down asymmetry, hence why the loss isn’t 1.57.
+
+Kaggle-130M:
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-from_scratch-sweeps/sweeps/fulxgond?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-direction_from_scratch/runs/v4l8zeyo?nw=nwuserjltastet)
+- Checkpoint: `training_from_scratch/kaggle-130Mevt-tuned_250508-213104/last.ckpt`
+
 ### Fine-tuning
 
 Ideally we would re-tune the fine-tuning hyperparameters for each base model and task, but this is inefficient. Instead let’s check that the optimal hyperparameters don’t deviate too much between base models and task, compared to a reference run (directional fine-tuning of model pretrained on 130M Kaggle events, using 100k fine-tuning events).
@@ -70,6 +75,16 @@ Validation loss after fine-tuning on the angular reconstruction task.
 - We can also note that only models trained on Kaggle (130M) perform better than naive linear regression (~1.2 loss if I remember correctly from the Kaggle competition).
 - Overall, when controlling for the number of events, models trained and/or evaluated on Prometheus have a lower angular loss.
 
+| Supervised baseline | Angular loss on same dataset |
+| ------------------- | ---------------------------- |
+| Kaggle (130M)       | 1.03*                        |
+| Kaggle (100k)       | 1.54                         |
+| Prometheus (100k)   | 1.55                         |
+| [Kaggle winner](https://www.kaggle.com/competitions/icecube-neutrinos-in-deep-ice/discussion/402976) | 0.96 |
+| [Line fit](https://www.kaggle.com/code/solverworld/icecube-picks-points-with-least-squares) | 1.18 |
+
+*(\* = still training)*
+
 Transferring the fine-tuned model to the other dataset (on which it wasn’t fine-tuned), we obtain the following losses:
 
 | $\downarrow$ Pretrained / Fine-tuned (transferred to) $\rightarrow$ | Kaggle (100k)<br>(transferred to Prometheus) | Prometheus (100k)<br>(transferred to Kaggle) |
@@ -77,4 +92,15 @@ Transferring the fine-tuned model to the other dataset (on which it wasn’t fin
 | Kaggle (130M)                                                       | 1.44                                         | 1.46                                         |
 | Kaggle (350k)                                                       | 1.48                                         | 1.51                                         |
 | Prometheus (350k)                                                   | 1.47                                         | 1.52                                         |
-Very minor transfer seems to be happening (better than a random guess), but the performance regression is large compared to the dataset on which the model was fine-tuned.
+
+- Very minor transfer seems to be happening (better than a random guess), but the performance regression is large compared to the dataset on which the model was fine-tuned.
+
+| Supervised baseline | Transferred to | Angular loss on other dataset |
+| ------------------- | -------------- | ----------------------------- |
+| Kaggle (130M)       | Prometheus     | 1.45*                         |
+| Kaggle (100k)       | Prometheus     | N/A                           |
+| Prometheus (100k)   | Kaggle         | N/A                           |
+
+*(\* = still training)*
+
+- Event the supervised baseline trained on 130M Kaggle events does not generalise to the Prometheus dataset.
