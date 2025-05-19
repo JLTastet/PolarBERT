@@ -1,4 +1,4 @@
-_Updated: YYYY-MM-DD_
+_Updated: 2025-05-09_
 ## Fine-tuning and transfer with time offset
 
 Pretrain model on dataset X, fine-tune on Y for task T, evaluate on Z, with a random time offset of 1.5 added during fine-tuning and evaluation.
@@ -6,33 +6,85 @@ where:
 	X $\in$ Kaggle (130M), Kaggle (350k), Prometheus (350k)
 	Y, Z $\in$ Kaggle
 	T $\in$ direction reconstruction
-and optimising the fine-tuning hyperparameters in each case. `--random_time_offset 1.5` is added to the `finetuning.py` command line.
+and optimising the fine-tuning hyperparameters in each case. `random_time_offset: 1.5` is added to YAML config file.
 Compare to baselines trained directly on the downstream task (also with the time offset).
 
 ### Pretraining
 
-Pretrained checkpoints (X) are the same as in the original experiment:
-- Kaggle (130M) $\to$ `checkpoints/results/kaggle-130M-tuned-v2/Flash Transformer/last.ckpt`
-- Kaggle (350k) $\to$ `checkpoints/results/kaggle-350k-tuned/kaggle-tuned-350k_events_250409-160721/last.ckpt`
-- Prometheus (350k) $\to$ `checkpoints/results/prometheus-tuned-v3/prometheus-tuned-v3_250410-035606/last.ckpt`
+Pretrained checkpoints (X) must be re-tuned now that we are including a time offset.
+
+Kaggle (130M)
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-sweeps/sweeps/qvcv183g?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-results/runs/5doc1vn8?nw=nwuserjltastet)
+- Checkpoint: `checkpoints/results/kaggle-130M-time_offset-tuned_250506-012336/last.ckpt`
+- Very unstable training, required multiple sweeps of increasing granularity, over all hyperparameters, to get reliable training.
+
+Kaggle (350k)
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-sweeps/sweeps/2l72klhg?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-results/runs/hxlad6rt?nw=nwuserjltastet)
+- Checkpoint: `checkpoints/results/kaggle-350k-time_offset-tuned/kaggle-tuned-350k_events-randtime-1.5_250422-183803/last.ckpt`
+
+Prometheus (350k)
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-sweeps/sweeps/anh2umje?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-results/runs/xe455tq4?nw=nwuserjltastet)
+- Checkpoint: `checkpoints/results/prometheus-time_offset-tuned_250426-215311/last.ckpt`
 
 ### Baselines (with time offset)
 
-*To be filled in.*
+Training from scratch on the smaller Kaggle-100k and Prometheus-100k datasets already didn’t work without a time offset, so it doesn’t make sense to try with one.
+
+Kaggle-130M:
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-from_scratch-sweeps/sweeps/tgt1yodv?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-direction_from_scratch/runs/0qlggntp?nw=nwuserjltastet) (exploded, need to further tune HPs and retrain)
+- Best runs from the sweep achieve an angular loss of ~1.04.
+- I can probably brute-force more stable hyperparameters by running a finer sweep.
 
 ### Fine-tuning (with time offset)
 
-*To be filled in.*
+Kaggle-350k $\to$ Prometheus-100k
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/lbrmbevx?nw=nwuserjltastet)
+- Almost doesn’t train (gets stuck in the local minimum ~1.53).
+- Still doesn’t train if we only apply the time offset during pretraining, but not during fine-tuning.
 
-#### Summary tables (with time offset)
+Kaggle-130M $\to$ Prometheus-100k
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/6markrg6/workspace?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/q8sjeh66?nw=nwuserjltastet)
+- Best validation loss 1.38
 
-*To be filled in.*
+Kaggle-130M $\to$ Kaggle-100k
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/pxgokmtl/workspace?nw=nwuserjltastet)
+- Best validation loss 1.32
+
+Kaggle-130M $\to$ Kaggle-1M
+- [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/4kwt1ldw/workspace?nw=nwuserjltastet)
+- Best validation loss **so far** 1.21 (ongoing sweep)
+
+### Summary tables (with time offset)
+
+For the results below, the random offset is disabled for evaluation.
+
+| $\downarrow$ Pretrained / Fine-tuned $\rightarrow$ | Kaggle (100k) | Kaggle (1M) | Kaggle (10M) | Prometheus (100k) |
+| -------------------------------------------------- | ------------- | ----------- | ------------ | ----------------- |
+| Kaggle (130M)                                      | 1.32          | 1.13        | 1.07         | 1.38              |
+| Kaggle (350k)                                      |               |             |              | 1.53              |
+| Prometheus (350k)                                  |               |             |              |                   |
+
+| Supervised baseline | Angular loss |
+| ------------------- | ------------ |
+| Kaggle (130M)       | 1.04 $^\dagger$ |
+
+*($\dagger$ = best run hard to reproduce, could be solved by more comprehensive sweep)
 
 ### Transfer evaluation (with time offset)
 
-*To be filled in.*
+| $\downarrow$ Pretrained / Fine-tuned (transferred to) $\rightarrow$ | Kaggle (100k)<br>(transferred to Prometheus) | Prometheus (100k)<br>(transferred to Kaggle) |
+| ------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| Kaggle (130M)                                                       |                                              | 1.50                                         |
+| Kaggle (350k)                                                       |                                              | N/A                                          |
+| Prometheus (350k)                                                   |                                              |                                              |
+
+| Supervised baseline | Angular loss on Prometheus (100k) |
+| ------------------- | --------------------------------- |
+| Kaggle (130M)       | (need to train a new checkpoint)  |
 
 ## Procedure for Pretraining (Kaggle-350k with Time Offset Example)
+
+*(The text below is LLM-generated)*
 
 This section outlines the steps followed to pretrain a model on the Kaggle-350k dataset subset with a random time offset, including hyperparameter tuning.
 
