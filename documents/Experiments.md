@@ -30,6 +30,40 @@ Kaggle-130M:
 - [Sweep](https://wandb.ai/polargeese/PolarBERT-from_scratch-sweeps/sweeps/fulxgond?nw=nwuserjltastet), [Run](https://wandb.ai/polargeese/PolarBERT-direction_from_scratch/runs/v4l8zeyo?nw=nwuserjltastet)
 - Checkpoint: `training_from_scratch/kaggle-130Mevt-tuned_250508-213104/last.ckpt`
 
+2nd place solution in the Kaggle competition:
+- [Description](https://www.kaggle.com/competitions/icecube-neutrinos-in-deep-ice/discussion/402882)
+- [GitHub repo](https://github.com/DrHB/icecube-2nd-place)
+- Loss = 0.985 after one epoch
+- <details>
+  <summary>Training log</summary>
+  | epoch | train_loss | valid_loss | loss     | time    |
+  | ----- | ---------- | ---------- | -------- | ------- |
+  | 0     | 1.423963   | 1.603518   | 1.018236 | 7:37:55 |
+  | 1     | 1.438598   | 1.500142   | 1.005303 | 7:40:39 |
+  | 2     | 1.420504   | 1.446541   | 0.999482 | 7:42:53 |
+  | 3     | 1.522008   | 1.443557   | 0.994098 | 7:42:45 |
+  | 4     | 1.337309   | 1.441020   | 0.988996 | 7:45:37 |
+  | 5     | 1.375497   | 1.405637   | 0.987659 | 7:47:59 |
+  | 6     | 1.376120   | 1.400784   | 0.986937 | 7:46:27 |
+  | 7     | 1.329084   | 1.402375   | 0.984946 | 7:50:35 |
+  </details>
+
+2nd place solution, retrained on Prometheus:
+- Loss = 0.909 after one epoch (without re-tuning HPs)
+- <details>
+  <summary>Training log</summary>
+  | epoch | train_loss         | valid_loss         | loss               | time  |
+  | ----- | ------------------ | ------------------ | ------------------ | ----- |
+  | 0     | 2.0344083309173584 | 2.060356616973877  | 1.1605197191238403 | 25:06 |
+  | 1     | 1.478379249572754  | 1.6348345279693604 | 0.9803785681724548 | 25:03 |
+  | 2     | 1.379515290260315  | 1.4891389608383179 | 0.9472606182098389 | 25:06 |
+  | 3     | 1.294839859008789  | 1.4501670598983765 | 0.934542715549469  | 25:06 |
+  | 4     | 1.2463183403015137 | 1.4160795211791992 | 0.918764054775238  | 25:07 |
+  | 5     | 1.2013909816741943 | 1.3734105825424194 | 0.9157801270484924 | 25:06 |
+  | 6     | 1.230812907218933  | 1.3718585968017578 | 0.9113832116127014 | 25:03 |
+  | 7     | 1.206772804260254  | 1.3788288831710815 | 0.9091024994850159 | 25:06 |
+  </details>
+
 ### Fine-tuning
 
 Ideally we would re-tune the fine-tuning hyperparameters for each base model and task, but this is inefficient. Instead let’s check that the optimal hyperparameters don’t deviate too much between base models and task, compared to a reference run (directional fine-tuning of model pretrained on 130M Kaggle events, using 100k fine-tuning events).
@@ -80,10 +114,14 @@ Validation loss after fine-tuning on the angular reconstruction task.
 | Kaggle (130M)       | 1.03*                        |
 | Kaggle (100k)       | 1.54                         |
 | Prometheus (100k)   | 1.55                         |
-| [Kaggle winner](https://www.kaggle.com/competitions/icecube-neutrinos-in-deep-ice/discussion/402976) | 0.96 |
-| [Line fit](https://www.kaggle.com/code/solverworld/icecube-picks-points-with-least-squares) | 1.18 |
+| [Kaggle winner](https://www.kaggle.com/competitions/icecube-neutrinos-in-deep-ice/discussion/402976) | 0.960 |
+| [Kaggle 2nd](https://www.kaggle.com/competitions/icecube-neutrinos-in-deep-ice/discussion/402882) (retrained, 1ep) | 0.985 |
+| Kaggle 2nd (Prometheus, 1ep) | 0.909 $^\S$               |
+| [Line fit](https://www.kaggle.com/code/solverworld/icecube-picks-points-with-least-squares) (Kaggle) | 1.18 |
+| Plain line fit (Kaggle) | 1.21                     |
+| Plain line fit (Prometheus) | 1.52 $^\dagger$      |
 
-*(\* = still training)*
+*(\* = HPs not fully tuned, $\S$ = HPs not re-tuned, $\dagger$ = with or without auxiliary, since almost all pulses are signal)*
 
 Transferring the fine-tuned model to the other dataset (on which it wasn’t fine-tuned), we obtain the following losses:
 
@@ -100,7 +138,8 @@ Transferring the fine-tuned model to the other dataset (on which it wasn’t fin
 | Kaggle (130M)       | Prometheus     | 1.45*                         |
 | Kaggle (100k)       | Prometheus     | N/A                           |
 | Prometheus (100k)   | Kaggle         | N/A                           |
+| Kaggle 2nd (retrained, 1ep) | Prometheus | 1.36                      |
 
-*(\* = still training)*
+*(\* = HPs not fully tuned)*
 
 - Event the supervised baseline trained on 130M Kaggle events does not generalise to the Prometheus dataset.
