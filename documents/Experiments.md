@@ -36,6 +36,7 @@ Kaggle-130M:
 - Loss = 0.985 after one epoch
 - <details>
   <summary>Training log</summary>
+
   | epoch | train_loss | valid_loss | loss     | time    |
   | ----- | ---------- | ---------- | -------- | ------- |
   | 0     | 1.423963   | 1.603518   | 1.018236 | 7:37:55 |
@@ -52,6 +53,7 @@ Kaggle-130M:
 - Loss = 0.909 after one epoch (without re-tuning HPs)
 - <details>
   <summary>Training log</summary>
+
   | epoch | train_loss         | valid_loss         | loss               | time  |
   | ----- | ------------------ | ------------------ | ------------------ | ----- |
   | 0     | 2.0344083309173584 | 2.060356616973877  | 1.1605197191238403 | 25:06 |
@@ -87,15 +89,26 @@ After the sweeps, all hyperparameters except `max_epochs`, `max_lr` and `weight_
 
 Remaining fine-tuning runs:
 - Kaggle-350k $\to$ Prometheus-100k
-  [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/znk84wjv?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/o3f8sz8k?nw=nwuserjltastet)
-  Checkpoint: `checkpoints/results/directional-kaggle_350k_on_prometheus_100k-tuned_250414-165826/last.ckpt`
-  Note: some minor overfitting of hyperparameters was observed for this sweep, such that the validation loss of the retrained model is slightly worse than for the best run from the sweep.
+  - [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/znk84wjv?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/o3f8sz8k?nw=nwuserjltastet)
+  - Checkpoint: `checkpoints/results/directional-kaggle_350k_on_prometheus_100k-tuned_250414-165826/last.ckpt`
+  - Note: some minor overfitting of hyperparameters was observed for this sweep, such that the validation loss of the retrained model is slightly worse than for the best run from the sweep.
 - Prometheus-350k $\to$ Prometheus-100k
-  [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/xfre8ose?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/gpb8mm2x?nw=nwuserjltastet)
-  Checkpoint: `checkpoints/results/directional-prometheus_350k_on_prometheus_100k-tuned_250414-165826/last.ckpt`
+  - [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/xfre8ose?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/gpb8mm2x?nw=nwuserjltastet)
+  - Checkpoint: `checkpoints/results/directional-prometheus_350k_on_prometheus_100k-tuned_250414-165826/last.ckpt`
 - Prometheus-350k $\to$ Kaggle-100k
-  [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/pumnozfx?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/pybkl0wn?nw=nwuserjltastet)
-  Checkpoint: `checkpoints/results/directional-prometheus_350k_on_kaggle_100k-tuned_250414-165826/last.ckpt`
+  - [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/pumnozfx?nw=nwuserjltastet) [Run](https://wandb.ai/polargeese/PolarBERT-finetuning-results/runs/pybkl0wn?nw=nwuserjltastet)
+  - Checkpoint: `checkpoints/results/directional-prometheus_350k_on_kaggle_100k-tuned_250414-165826/last.ckpt`
+
+Freezing the backbone:
+- Kaggle-130M $\to$ Prometheus-100k:
+  - [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/yhuwjph6/workspace?nw=nwuserjltastet)
+  - Best loss ~1.36. Worse than random when evaluated on Kaggle.
+  - It seems that letting all weights float is necessary to achive good fine-tuning performance. This suggests that the representations learned during pre-training on Kaggle are not sufficient for the Prometheus dataset.
+- Kaggle-130M $\to$ Kaggle-100k:
+  - [Sweep](https://wandb.ai/polargeese/PolarBERT-finetuning-sweeps/sweeps/o091qv9h?nw=nwuserjltastet)
+  - Best loss ~1.30. Random when evaluated on Prometheus.
+  - Even on Kaggle, we do not obtain good downstream performance on directional reconstruction by fine-tuning with a frozen backbone. This suggests that even when we restrict ourselves to the Kaggle dataset, the representations learned during pretraining are not sufficient to solve the downstream task better than a linear model.
+
 #### Summary tables
 
 Validation loss after fine-tuning on the angular reconstruction task.
@@ -105,9 +118,17 @@ Validation loss after fine-tuning on the angular reconstruction task.
 | Kaggle (130M)                                      | 1.08          | 0.96              |
 | Kaggle (350k)                                      | 1.26          | 1.19              |
 | Prometheus (350k)                                  | 1.24          | 1.18              |
+
+| $\downarrow$ Pretrained / Fine-tuned (frozen backbone) $\rightarrow$ | Kaggle (100k) | Prometheus (100k) |
+| -------------------------------------------------------------------- | ------------- | ----------------- |
+| Kaggle (130M)                                                        | 1.30          | 1.36              |
+
 - We can observed various degrees of transfer learning in all cases. However, we have so far only evaluated the models on the task they were trained for. Another type of transfer learning would be to evaluate them on the other dataset (e.g. if fine-tuned on Kaggle, evaluate them on Prometheus).
 - We can also note that only models trained on Kaggle (130M) perform better than naive linear regression (~1.2 loss if I remember correctly from the Kaggle competition).
 - Overall, when controlling for the number of events, models trained and/or evaluated on Prometheus have a lower angular loss.
+- Freezing the backbone significantly harms performance, and changes the ordering between Kaggle and Prometheus, suggesting that:
+  - The model must learn new features at fine-tuning time in order to perform directional reconstruction.
+  - The model additionally had to form Prometheus-specific features to achieve a score of 0.96 on Prometheus.
 
 | Supervised baseline | Angular loss on same dataset |
 | ------------------- | ---------------------------- |
@@ -131,7 +152,12 @@ Transferring the fine-tuned model to the other dataset (on which it wasn’t fin
 | Kaggle (350k)                                                       | 1.48                                         | 1.51                                         |
 | Prometheus (350k)                                                   | 1.47                                         | 1.52                                         |
 
+| $\downarrow$ Pretrained / Fine-tuned (frozen backbone) $\rightarrow$ | Kaggle (100k)<br>(transferred to Prometheus) | Prometheus (100k)<br>(transferred to Kaggle) |
+| ------------------------------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| Kaggle (130M)                                                       | 1.58                                         | 1.60                                         |
+
 - Very minor transfer seems to be happening (better than a random guess), but the performance regression is large compared to the dataset on which the model was fine-tuned.
+- When freezing the backbone, performance becomes random under domain shift. Not only this didn’t solve the domain shift issue, but it made it worse. This suggests that the features formed during pretraining do not transfer across datasets.
 
 | Supervised baseline | Transferred to | Angular loss on other dataset |
 | ------------------- | -------------- | ----------------------------- |
@@ -142,4 +168,4 @@ Transferring the fine-tuned model to the other dataset (on which it wasn’t fin
 
 *(\* = HPs not fully tuned)*
 
-- Event the supervised baseline trained on 130M Kaggle events does not generalise to the Prometheus dataset.
+- Even the supervised baseline trained on 130M Kaggle events does not generalise to the Prometheus dataset.
