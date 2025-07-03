@@ -1,0 +1,3 @@
+Commit message should be: Exclude large directories to fix pyright indexing
+
+Original commit message was lost during some merge or fixup.
