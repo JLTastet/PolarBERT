@@ -122,7 +122,9 @@ def get_dataloaders(
         transform=default_transform,
         target_transform=default_target_transform,
         override_batch_size: Optional[int]=None,
-    ) -> Tuple[DataLoader, DataLoader]:
+        use_double_validation: bool=False,
+        val2_split: float=0.5,
+    ) -> Tuple[DataLoader, DataLoader, Optional[DataLoader]]:
 
     if dataset_type == 'prometheus':
         from polarbert.prometheus_dataset import IceCubeDataset
@@ -158,6 +160,20 @@ def get_dataloaders(
         val_dataset = full_val_dataset.slice(0, val_events)
     else:
         assert False
+
+    if use_double_validation:
+        total_events = val_dataset.num_events
+        val2_length = int(total_events * val2_split)
+        val_length = total_events - val2_length
+        if val_length <= 0:
+            raise ValueError(f"Validation set too small ({total_events} events) for double validation with split {val2_split}")
+        if val2_length <= 0:
+            raise ValueError(f"Secondary validation set would be empty with split {val2_split}")
+        val2_dataset = val_dataset.slice(val_length, None)
+        assert val2_dataset.num_events == val2_length, f"Secondary validation set has {val2_dataset.num_events} events, expected {val2_length}"
+        val_dataset = val_dataset.slice(0, val_length)
+    else:
+        val2_dataset = None
     
     loader_kwargs = {
         'batch_size': None,
@@ -168,7 +184,8 @@ def get_dataloaders(
     
     return (
         DataLoader(train_dataset, **loader_kwargs),
-        DataLoader(val_dataset, **loader_kwargs)
+        DataLoader(val_dataset, **loader_kwargs),
+        DataLoader(val2_dataset, **loader_kwargs) if val2_dataset is not None else None
     )
 
 def update_training_steps(config: Dict[str, Any], train_loader: DataLoader) -> Dict[str, Any]:
@@ -237,6 +254,8 @@ def main():
     parser.add_argument("--job_id", type=str, default=None)
     parser.add_argument("--model_type", type=str, choices=list(MODEL_CLASSES.keys()), default='base')
     parser.add_argument("--dataset_type", type=str, choices=['kaggle', 'prometheus'])
+    parser.add_argument("--use-double-validation", action='store_true', default=False,
+                        help='Use a second, clean validation set to decide when to stop hyperparameter tuning. Uses the "val2/" prefix.')
     args = parser.parse_args()
 
     # Load and process config
@@ -277,7 +296,12 @@ def main():
         transform = add_random_time_offset(random_time_offset_std)
     else:
         transform = default_transform
-    train_loader, val_loader = get_dataloaders(config, dataset_type=args.dataset_type, transform=transform)
+    train_loader, val_loader, val2_loader = get_dataloaders(
+        config,
+        dataset_type=args.dataset_type,
+        transform=transform,
+        use_double_validation=args.use_double_validation
+    )
     
     # Update training steps in config
     config = update_training_steps(config, train_loader)
@@ -305,7 +329,16 @@ def main():
         val_check_interval=val_interval,  # Can be float (fraction of epoch) or int (number of steps)
     )
 
-    trainer.fit(model, train_loader, val_loader)
+    # Use try/finally to ensure second validation runs even if training is interrupted
+    try:
+        trainer.fit(model, train_loader, val_loader)
+    finally:
+        # Run second validation regardless of whether training completed normally or was interrupted
+        if args.use_double_validation:
+            assert val2_loader is not None, "Double validation was requested but val2_loader is None"
+            logging.info("Running second validation step...")
+            trainer.test(model, val2_loader)
+            logging.info("Second validation step completed successfully")
 
 if __name__ == '__main__':
     main()

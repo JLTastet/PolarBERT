@@ -36,7 +36,7 @@ class SimpleTransformer(pl.LightningModule):
         logits = self.unembedding(output[:, 1:, :])
         return logits, mask, charge, padding_mask[:, 1:]
     
-    def shared_step(self, batch):
+    def _shared_step(self, batch):
         inp, y = batch
         logits, mask, charge_hat, padding_mask = self(inp)
         x, l = inp
@@ -44,22 +44,25 @@ class SimpleTransformer(pl.LightningModule):
         loss = self.masked_prediction_loss(logits, x['dom_id'], mask, padding_mask)
         charge_loss = F.mse_loss(charge_hat.squeeze(), torch.log10(charge))
         return loss, charge_loss
+    
+    def _shared_step_with_logging(self, batch, prefix: str):
+        loss, charge_loss = self._shared_step(batch)
+        self.log(f'{prefix}/dom_loss', loss, prog_bar=True)
+        self.log(f'{prefix}/charge_loss', charge_loss, prog_bar=True)
+        full_loss = loss + self.lambda_charge * charge_loss
+        self.log(f'{prefix}/full_loss', full_loss, prog_bar=True)
+        return full_loss
 
     def training_step(self, batch, batch_idx):
-        loss, charge_loss = self.shared_step(batch)
-        self.log('train/dom_loss', loss, prog_bar=True)
-        self.log('train/charge_loss', charge_loss, prog_bar=True)
-        full_loss = loss + self.lambda_charge * charge_loss
-        self.log('train/full_loss', full_loss, prog_bar=True)
-        return full_loss
+        return self._shared_step_with_logging(batch, 'train')
 
     def validation_step(self, batch, batch_idx):
-        loss, charge_loss = self.shared_step(batch)
-        self.log('val/dom_loss', loss, prog_bar=True)
-        self.log('val/charge_loss', charge_loss, prog_bar=True)
-        full_loss = loss + self.lambda_charge * charge_loss
-        self.log('val/full_loss', full_loss, prog_bar=True)
-        return full_loss
+        return self._shared_step_with_logging(batch, 'val')
+
+    def test_step(self, batch, batch_idx):
+        # We (optionally) use the test_step to evaluate the model on a second, clean validation set
+        # This is used to decide when to stop hyperparameter tuning
+        return self._shared_step_with_logging(batch, 'val2')
     
     def masked_prediction_loss(self, logits, target_dom_ids, mask, padding_mask, eps=1e-8):
         mask = mask & ~padding_mask
