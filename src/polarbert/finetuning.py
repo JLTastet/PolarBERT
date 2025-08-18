@@ -12,6 +12,8 @@ from typing import Dict, Any, Optional
 from abc import abstractmethod
 
 import logging
+import random
+import string
 
 from polarbert.utils.config import load_and_process_config
 from polarbert.utils.data import (
@@ -217,7 +219,7 @@ def main():
     config = load_and_process_config(args.config)
     
     # Setup model name
-    suffix = args.job_id or datetime.now().strftime('%y%m%d-%H%M%S')
+    suffix = args.job_id or f"{datetime.now().strftime('%y%m%d-%H%M%S')}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
     model_name = f"{args.name or config['model']['model_name'] or 'finetuned'}_{suffix}"
     config['model']['model_name'] = model_name
     
