@@ -1,7 +1,15 @@
 #!/usr/bin/env python3
 """
 Script to analyze dataset scaling experiments by processing hyperparameter sweeps.
-For each sweep directory matching the pattern '2-{X}M_on_{Y}M-lr_scan':
+Supports both fine-tuning and supervised baseline experiments.
+
+For fine-tuning sweep directories matching '2-{X}M_on_{Y}M-lr_scan':
+- X = fine-tuning events (millions), Y = pretraining events (millions)
+
+For supervised sweep directories matching '2-{X}M-lr_scan':  
+- X = training events (millions), no pretraining
+
+For each sweep directory:
 1. Downloads sweep results from W&B
 2. Selects the best checkpoint based on validation loss
 3. Copies the best checkpoint to a 'best_checkpoint' subdirectory
@@ -47,18 +55,33 @@ def extract_sweep_path_from_slurm(slurm_file: Path) -> Optional[str]:
         return None
 
 
-def parse_sweep_directory_name(dir_name: str) -> Optional[Tuple[int, int]]:
-    """Parse sweep directory name to extract fine-tuning and pretraining event counts."""
+def parse_sweep_directory_name(dir_name: str) -> Optional[Tuple[int, Optional[int], str]]:
+    """
+    Parse sweep directory name to extract training event counts and experiment type.
+    
+    Returns:
+        Tuple of (train_events_M, pretrain_events_M, experiment_type) or None if no match.
+        For fine-tuning: (finetune_events_M, pretrain_events_M, 'finetuning')
+        For supervised: (train_events_M, None, 'supervised')
+    """
+    # Try fine-tuning pattern first: 2-{X}M_on_{Y}M-lr_scan
     match = re.match(r'2-(\d+)M_on_(\d+)M-lr_scan', dir_name)
     if match:
         finetune_events_M = int(match.group(1))
         pretrain_events_M = int(match.group(2))
-        return finetune_events_M, pretrain_events_M
+        return finetune_events_M, pretrain_events_M, 'finetuning'
+    
+    # Try supervised pattern: 2-{X}M-lr_scan
+    match = re.match(r'2-(\d+)M-lr_scan', dir_name)
+    if match:
+        train_events_M = int(match.group(1))
+        return train_events_M, None, 'supervised'
+    
     return None
 
 
-def get_finetune_events_from_config(config_file: Path) -> Optional[int]:
-    """Extract training events from base_config.yaml."""
+def get_train_events_from_config(config_file: Path) -> Optional[int]:
+    """Extract training events from base_config.yaml (works for both finetuning and supervised)."""
     try:
         with open(config_file, 'r') as f:
             config = yaml.safe_load(f)
@@ -242,7 +265,7 @@ def process_sweep_directory(sweep_dir: Path, test_dir: str, device: str = 'auto'
         logger.warning(f"Skipping directory {sweep_dir.name} - doesn't match expected pattern")
         return None
     
-    finetune_events_M, pretrain_events_M = parsed
+    train_events_M, pretrain_events_M, experiment_type = parsed
     
     # Check required files
     slurm_file = sweep_dir / "slurm.sh"
@@ -315,12 +338,12 @@ def process_sweep_directory(sweep_dir: Path, test_dir: str, device: str = 'auto'
     
     run_name, run_id, max_lr, val_loss = best_result
     
-    # Get actual finetune events from config
-    actual_finetune_events = get_finetune_events_from_config(config_file)
-    if actual_finetune_events:
-        actual_finetune_events_M = actual_finetune_events / 1_000_000
+    # Get actual training events from config
+    actual_train_events = get_train_events_from_config(config_file)
+    if actual_train_events:
+        actual_train_events_M = actual_train_events / 1_000_000
     else:
-        actual_finetune_events_M = finetune_events_M  # fallback to parsed value
+        actual_train_events_M = train_events_M  # fallback to parsed value
     
     # Check if test loss has already been computed for this specific run
     best_checkpoint_dir = sweep_dir / "best_checkpoint"
@@ -371,10 +394,10 @@ def process_sweep_directory(sweep_dir: Path, test_dir: str, device: str = 'auto'
         test_loss_uncertainty = test_results['uncertainty/test/loss']
     
     # Return summary data
-    return {
+    summary_data = {
         'sweep_name': sweep_dir.name,
-        'finetune_events_M': actual_finetune_events_M,
-        'pretrain_events_M': pretrain_events_M,
+        'experiment_type': experiment_type,
+        'train_events_M': actual_train_events_M,
         'run_name': run_name,
         'run_id': run_id,
         'max_lr': max_lr,
@@ -383,6 +406,16 @@ def process_sweep_directory(sweep_dir: Path, test_dir: str, device: str = 'auto'
         'test_loss_uncertainty': test_loss_uncertainty,
         'sweep_state': sweep_state
     }
+    
+    # Add pretrain events for fine-tuning experiments, keep backward compatibility
+    if experiment_type == 'finetuning':
+        summary_data['pretrain_events_M'] = pretrain_events_M
+        # Keep old column names for backward compatibility
+        summary_data['finetune_events_M'] = actual_train_events_M
+    else:
+        summary_data['pretrain_events_M'] = None
+    
+    return summary_data
 
 
 def main():
@@ -391,8 +424,8 @@ def main():
                        help='Path to experiment directory containing sweep subdirectories')
     parser.add_argument('--test-dir', type=str, required=True,
                        help='Path to test dataset directory')
-    parser.add_argument('--pattern', type=str, default=r'2-\d+M_on_\d+M-lr_scan',
-                       help='Regex pattern for sweep directory names (default: 2-\\d+M_on_\\d+M-lr_scan)')
+    parser.add_argument('--pattern', type=str, default=r'2-\d+M(?:_on_\d+M)?-lr_scan',
+                       help='Regex pattern for sweep directory names (default: 2-\\d+M(?:_on_\\d+M)?-lr_scan - matches both finetuning and supervised patterns)')
     parser.add_argument('--device', type=str, default='auto',
                        help='Device to use for evaluation (default: auto - use GPU if available)')
     parser.add_argument('--skip-unfinished', action='store_true', default=True,
@@ -416,11 +449,21 @@ def main():
     
     # Find all matching sweep directories
     pattern = re.compile(args.pattern)
-    sweep_dirs = [d for d in experiment_dir.iterdir() 
-                  if d.is_dir() and pattern.match(d.name)]
+    
+    # Search in experiment_dir and common subdirectories (finetuning, supervised)
+    search_dirs = [experiment_dir, experiment_dir / "finetuning", experiment_dir / "supervised"]
+    search_dirs = [d for d in search_dirs if d.exists()]
+    
+    sweep_dirs = []
+    for search_dir in search_dirs:
+        matching_dirs = [d for d in search_dir.iterdir() 
+                        if d.is_dir() and pattern.match(d.name)]
+        sweep_dirs.extend(matching_dirs)
+        if matching_dirs:
+            logger.info(f"Found {len(matching_dirs)} matching directories in {search_dir}")
     
     if not sweep_dirs:
-        logger.error(f"No directories matching pattern '{args.pattern}' found in {experiment_dir}")
+        logger.error(f"No directories matching pattern '{args.pattern}' found in {experiment_dir} or its subdirectories")
         return
     
     logger.info(f"Found {len(sweep_dirs)} sweep directories to process")
@@ -444,7 +487,20 @@ def main():
     
     # Create summary table
     summary_df = pd.DataFrame(summary_data)
-    summary_df = summary_df.sort_values(['pretrain_events_M', 'finetune_events_M'])
+    
+    # Sort by experiment type, then by relevant columns
+    # For finetuning: sort by pretrain_events_M, then train_events_M
+    # For supervised: sort by train_events_M only
+    sort_columns = []
+    if 'experiment_type' in summary_df.columns:
+        sort_columns.append('experiment_type')
+    if 'pretrain_events_M' in summary_df.columns:
+        sort_columns.append('pretrain_events_M')
+    if 'train_events_M' in summary_df.columns:
+        sort_columns.append('train_events_M')
+    
+    if sort_columns:
+        summary_df = summary_df.sort_values(sort_columns, na_position='last')
     
     # Save summary table
     summary_file = experiment_dir / "dataset_scaling_summary.csv"
