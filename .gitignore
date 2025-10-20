@@ -8,6 +8,7 @@ tables/
 notebooks/
 documents/*.pdf
 documents/past_chats/
+.specstory/
 
 # Ignored files are manually backed up
 backup/
